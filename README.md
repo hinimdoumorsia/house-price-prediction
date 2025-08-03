@@ -1,10 +1,10 @@
-# 🏠 House Price Prediction – Machine Learning Project
+#  House Price Prediction – Machine Learning Project
 
 This project was conducted as part of an academic assignment aiming to predict house prices from synthetic features, including noise handling, outliers, and advanced modeling techniques.
 
 ---
 
-## 👥 Team Members
+## Team Members
 
 - **HINIMDOU Morsia Guitdam** — *Team Leader, responsible for coordination, modeling, and project structure*  
 - **KHALD Adam**  
@@ -14,7 +14,7 @@ This project was conducted as part of an academic assignment aiming to predict h
 
 ---
 
-## 📌 Objective
+##  Objective
 
 Predict the **price of a house** (target variable: `Price`) based on features such as:
 
@@ -27,7 +27,7 @@ Predict the **price of a house** (target variable: `Price`) based on features su
 
 ---
 
-## 🛠️ Main Project Steps
+##  Main Project Steps
 
 ### 1. Data Generation
 - Synthetic data simulated using `numpy`  
@@ -56,7 +56,7 @@ Predict the **price of a house** (target variable: `Price`) based on features su
 
 ---
 
-## 📊 Model Complexity and Performance Analysis
+## Model Complexity and Performance Analysis
 
 - Analysis of computational complexity for each modeling approach  
 - Impact of regularization and gradient clipping on convergence speed  
@@ -65,7 +65,7 @@ Predict the **price of a house** (target variable: `Price`) based on features su
 
 ---
 
-## 📏 Evaluation Metrics
+##  Evaluation Metrics
 
 - Mean Absolute Error (MAE)  
 - Root Mean Squared Error (RMSE)  
@@ -74,7 +74,7 @@ Predict the **price of a house** (target variable: `Price`) based on features su
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 There are three folders named **R**, **Julia**, and **Python**.  
 Each folder contains:  
