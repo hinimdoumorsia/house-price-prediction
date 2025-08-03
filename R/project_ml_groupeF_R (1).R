@@ -1,0 +1,260 @@
+set.seed(42)
+
+# Nombre de lignes
+n_rows <- 10000
+
+# Générer les caractéristiques
+surface <- runif(n_rows, 30, 300)
+age <- sample(0:49, n_rows, replace = TRUE)
+security <- sample(1:5, n_rows, replace = TRUE)
+localization <- sample(1:5, n_rows, replace = TRUE)
+num_bedrooms <- sample(1:5, n_rows, replace = TRUE)
+equipment <- sample(1:5, n_rows, replace = TRUE)
+
+# Définir la relation pour le prix
+price <- (
+  2000 * surface -
+    500 * age +
+    1500 * security +
+    3000 * localization +
+    10000 * num_bedrooms +
+    2000 * equipment +
+    rnorm(n_rows, mean = 0, sd = 10000)
+)
+
+# Créer le DataFrame
+data <- data.frame(Surface = surface, Age = age, Security = security,
+                   Localization = localization, Bedrooms = num_bedrooms,
+                   Equipment = equipment, Price = price)
+
+# Ajouter des outliers
+n_outliers <- round(0.02 * n_rows)
+outlier_indices <- sample(1:n_rows, n_outliers)
+
+data[outlier_indices, "Surface"] <- data[outlier_indices, "Surface"] * runif(n_outliers, 2, 5)
+data[outlier_indices, "Price"] <- data[outlier_indices, "Price"] * runif(n_outliers, 2, 5)
+data[outlier_indices, "Age"] <- data[outlier_indices, "Age"] * runif(n_outliers, 1.5, 3)
+
+# Préparer X et y
+X <- cbind(1, sapply(data[, c("Surface", "Age", "Security", "Localization", "Bedrooms", "Equipment")], as.numeric))
+y <- as.numeric(data$Price)
+
+# Normalisation des données
+X_normalized <- scale(X[, -1])  # Normalisation des données (sans la colonne de biais)
+X <- cbind(1, X_normalized)  # Ajouter la colonne de biais
+
+# Division des données en training et testing (80% - 20%)
+n <- nrow(X)
+train_indices <- sample(1:n, size = 0.8 * n, replace = FALSE)
+test_indices <- setdiff(1:n, train_indices)
+
+X_train <- X[train_indices, ]
+y_train <- y[train_indices]
+X_test <- X[test_indices, ]
+y_test <- y[test_indices]
+
+# Fonction de descente de gradient avec mini-batch
+gradient_descent <- function(X, y, learning_rate = 0.001, epochs = 10000, batch_size = 128, tolerance = 1e-6) {
+  n <- nrow(X)
+  theta <- numeric(ncol(X))
+  
+  prev_cost <- Inf  # Initialisation de l'erreur précédente
+  for (epoch in 1:epochs) {
+    indices <- sample(1:n)
+    X <- X[indices, , drop = FALSE]
+    y <- y[indices]
+    
+    for (i in seq(1, n, by = batch_size)) {
+      end <- min(i + batch_size - 1, n)
+      X_batch <- X[i:end, , drop = FALSE]
+      y_batch <- y[i:end]
+      
+      predictions <- X_batch %*% theta
+      errors <- predictions - y_batch
+      gradients <- t(X_batch) %*% errors / length(y_batch)
+      
+      theta <- theta - learning_rate * gradients
+    }
+    
+    # Calculer la fonction de coût (MSE) pour le "early stopping"
+    cost <- mean((X %*% theta - y)^2)
+    if (abs(prev_cost - cost) < tolerance) {
+      cat("Convergence atteinte après", epoch, "époques\n")
+      break
+    }
+    prev_cost <- cost
+  }
+  
+  return(theta)
+}
+
+# Entraînement avec descente de gradient sur les données de training
+theta_gd <- gradient_descent(X_train, y_train, learning_rate = 0.001, epochs = 5000, batch_size = 128)
+
+# Calcul des coefficients avec l'équation normale (méthode analytique)
+theta_normal <- solve(t(X_train) %*% X_train) %*% t(X_train) %*% y_train
+
+# Prédiction sur les données de test avec les deux méthodes
+y_pred_gd <- X_test %*% theta_gd
+y_pred_normal <- X_test %*% theta_normal
+
+# Calcul des erreurs MSE (Mean Squared Error)
+mse_gd <- mean((y_test - y_pred_gd)^2)
+mse_normal <- mean((y_test - y_pred_normal)^2)
+
+# Calcul du R² (coefficient de détermination)
+r_squared_gd <- 1 - sum((y_test - y_pred_gd)^2) / sum((y_test - mean(y_test))^2)
+r_squared_normal <- 1 - sum((y_test - y_pred_normal)^2) / sum((y_test - mean(y_test))^2)
+
+# Calcul de la précision (1 - MSE / variance)
+precision_gd <- 1 - mse_gd / var(y_test)
+precision_normal <- 1 - mse_normal / var(y_test)
+
+# Résultats
+cat("Erreur quadratique moyenne (MSE) avec la descente de gradient (mini-batch) : ", mse_gd, "\n")
+cat("Erreur quadratique moyenne (MSE) avec l'équation normale : ", mse_normal, "\n")
+
+cat("R² avec la descente de gradient (mini-batch) : ", r_squared_gd, "\n")
+cat("R² avec l'équation normale : ", r_squared_normal, "\n")
+
+cat("Précision avec la descente de gradient (mini-batch) : ", precision_gd, "\n")
+cat("Précision avec l'équation normale : ", precision_normal, "\n")
+
+# Afficher les résultats des coefficients pour comparer
+cat("Coefficients obtenus par la descente de gradient :\n")
+print(theta_gd)
+
+cat("Coefficients obtenus par l'équation normale :\n")
+print(theta_normal)
+
+
+
+
+# analyse univarier et bivariee
+
+library(ggplot2)
+library(dplyr)
+
+# Boucle pour chaque colonne
+for (col in colnames(data)) {
+  cat("Analyse de la variable :", col, "\n")
+  
+  # Statistiques descriptives
+  print(summary(data[[col]]))
+  
+  # Type de la colonne
+  col_type <- class(data[[col]])
+  
+  if (col_type %in% c("numeric", "integer")) {
+    # Histogramme
+    plot1 <- ggplot(data, aes_string(x = col)) +
+      geom_histogram(bins = 10, fill = "blue", alpha = 0.7) +
+      geom_density(aes(y = ..density..), color = "red") +
+      ggtitle(paste("Histogramme de", col)) +
+      xlab(col) +
+      ylab("Fréquence") +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5))
+    print(plot1)
+    
+    # Boîte à moustaches
+    plot2 <- ggplot(data, aes_string(y = col)) +
+      geom_boxplot(fill = "cyan", alpha = 0.7) +
+      ggtitle(paste("Boîte à moustaches de", col)) +
+      ylab(col) +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5))
+    print(plot2)
+    
+    # Calcul de l'asymétrie
+    valid_data <- na.omit(data[[col]])  # Supprimer les NA
+    skew <- sum((valid_data - mean(valid_data))^3) / 
+      ((length(valid_data) - 1) * sd(valid_data)^3)
+    
+    if (skew > 0.5) {
+      cat("La distribution de", col, "est positivement asymétrique (skew > 0.5).\n")
+    } else if (skew < -0.5) {
+      cat("La distribution de", col, "est négativement asymétrique (skew < -0.5).\n")
+    } else {
+      cat("La distribution de", col, "est relativement symétrique.\n")
+    }
+    
+  } else if (col_type %in% c("factor", "character")) {
+    # Diagramme en barres
+    plot3 <- ggplot(data, aes_string(x = col)) +
+      geom_bar(fill = "orange", alpha = 0.7) +
+      ggtitle(paste("Diagramme en barres de", col)) +
+      xlab(col) +
+      ylab("Fréquence") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(plot.title = element_text(hjust = 0.5))
+    print(plot3)
+    
+    cat("La variable", col, "est catégorielle. Les valeurs les plus fréquentes sont :\n")
+    print(head(sort(table(data[[col]]), decreasing = TRUE)))
+  } else {
+    cat("Type de données inconnu pour la colonne", col, ", impossible de générer un graphique.\n")
+  }
+  cat(strrep("-", 30), "\n")  # Séparation entre les analyses
+}
+
+
+install.packages("dplyr")
+install.packages("gridExtra")
+install.packages("ggplot")
+install.packages("car")
+
+
+
+
+library(ggplot2)
+library(dplyr)
+library(car)
+
+analyse_bivariee <- function(df) {
+  num_vars <- c("Surface", "Age", "Bedrooms")
+  
+  par(mfrow = c(3, 2), mar = c(4, 4, 2, 1)) 
+  for (var in num_vars) {
+    plot(df[[var]], df$Price, xlab = var, ylab = "Prix", main = paste("Prix vs", var))
+    corr <- cor(df[[var]], df$Price, use = "complete.obs")
+    legend("topright", legend = paste("Corrélation:", round(corr, 2)), bty = "n")
+    boxplot(df$Price ~ df[[var]], xlab = var, ylab = "Prix", main = paste("Distribution des Prix par", var))
+  }
+  
+  cat_vars <- c("Security", "Localization", "Equipment")
+  
+  par(mfrow = c(2, 2)) 
+  for (var in cat_vars) {
+    boxplot(df$Price ~ df[[var]], xlab = var, ylab = "Prix", main = paste("Prix par", var), las = 2)
+    
+    # Test ANOVA
+    anova_result <- aov(Price ~ as.factor(df[[var]]), data = df)
+    p_value <- summary(anova_result)[[1]][["Pr(>F)"]][1]
+    legend("topright", legend = paste("p-value ANOVA:", round(p_value, 4)), bty = "n")
+  }
+  
+  # 3. Matrice de corrélation
+  num_vars_with_price <- c(num_vars, "Price")
+  corr_matrix <- cor(df[, num_vars_with_price], use = "complete.obs")
+  corrplot::corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.8, title = "Matrice de Corrélation")
+  
+  # 4. Statistiques récapitulatives
+  stats_summary <- data.frame(
+    Variable = num_vars,
+    Corrélation_avec_Prix = sapply(num_vars, function(var) cor(df[[var]], df$Price, use = "complete.obs"))
+  )
+  
+  return(stats_summary)
+}
+
+resultats <- analyse_bivariee(data)
+print(resultats)
+
+
+
+
+
+
+
